@@ -2,8 +2,12 @@
 
 require_once __DIR__.'/_config.php';
 
+use LightSaml\Idp\Builder\Profile\WebBrowserSso\Idp\SsoIdpReceiveAuthnRequestProfileBuilder;
+use LightSaml\Idp\Builder\Profile\WebBrowserSso\Idp\SsoIdpSendResponseProfileBuilder;
+use LightSaml\Idp\Builder\Action\Profile\SingleSignOn\Idp\SsoIdpAssertionActionBuilder;
+
 $buildContext = IdpConfig::current()->getBuildContainer();
-$receiveBuilder = new \LightSaml\Idp\Builder\Profile\WebBrowserSso\Idp\SsoIdpReceiveAuthnRequestProfileBuilder($buildContext);
+$receiveBuilder = new SsoIdpReceiveAuthnRequestProfileBuilder($buildContext);
 
 $context = $receiveBuilder->buildContext();
 $action = $receiveBuilder->buildAction();
@@ -14,9 +18,9 @@ $partyContext = $context->getPartyEntityContext();
 $endpoint = $context->getEndpoint();
 $message = $context->getInboundMessage();
 
-$sendBuilder = new \LightSaml\Idp\Builder\Profile\WebBrowserSso\Idp\SsoIdpSendResponseProfileBuilder(
+$sendBuilder = new SsoIdpSendResponseProfileBuilder(
     $buildContext,
-    array(new \LightSaml\Idp\Builder\Action\Profile\SingleSignOn\Idp\SsoIdpAssertionActionBuilder($buildContext)),
+    array(new SsoIdpAssertionActionBuilder($buildContext)),
     $partyContext->getEntityDescriptor()->getEntityID()
 );
 $sendBuilder->setPartyEntityDescriptor($partyContext->getEntityDescriptor());

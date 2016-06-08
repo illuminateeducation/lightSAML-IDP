@@ -2,13 +2,39 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-
-
-
+use LightSaml\Bridge\Pimple\Container\BuildContainer;
+use LightSaml\Bridge\Pimple\Container\SystemContainer;
+use LightSaml\Bridge\Pimple\Container\PartyContainer;
+use LightSaml\Bridge\Pimple\Container\ProviderContainer;
+use LightSaml\Bridge\Pimple\Container\Factory\OwnContainerProvider;
+use LightSaml\Bridge\Pimple\Container\Factory\SystemContainerProvider;
+use LightSaml\Bridge\Pimple\Container\Factory\PartyContainerProvider;
+use LightSaml\Bridge\Pimple\Container\Factory\ProviderContainerProvider;
+use LightSaml\Bridge\Pimple\Container\Factory\ServiceContainerProvider;
+use LightSaml\Bridge\Pimple\Container\Factory\StoreContainerProvider;
+use LightSaml\Bridge\Pimple\Container\Factory\CredentialContainerProvider;
+use LightSaml\Builder\EntityDescriptor\SimpleEntityDescriptorBuilder;
+use LightSaml\Meta\TrustOptions\TrustOptions;
+use LightSaml\Model\Metadata\EntityDescriptor;
+use LightSaml\Model\Assertion\NameID;
+use LightSaml\Model\Assertion\Attribute;
+use LightSaml\ClaimTypes;
+use LightSaml\Credential\X509Credential;
+use LightSaml\Credential\X509Certificate;
+use LightSaml\Credential\KeyHelper;
+use LightSaml\Provider\Attribute\FixedAttributeValueProvider;
+use LightSaml\Provider\NameID\FixedNameIdProvider;
+use LightSaml\Provider\Session\FixedSessionInfoProvider;
+use LightSaml\SamlConstants;
+use LightSaml\Store\EntityDescriptor\FixedEntityDescriptorStore;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+use Pimple\Container;
+use Symfony\Component\HttpFoundation\Session\Session;
+use LightSaml\Store\TrustOptions\FixedTrustOptionsStore;
 
 class IdpConfig
 {
-    const OWN_ENTITY_ID = 'http://idp.v.com/idp';
     private $config = [];
 
     /** @var  \SpConfig */
@@ -38,8 +64,8 @@ class IdpConfig
      */
     public function getBuildContainer()
     {
-        $pimple = new \Pimple\Container();
-        $result = new \LightSaml\Bridge\Pimple\Container\BuildContainer($pimple);
+        $pimple = new Container();
+        $result = new BuildContainer($pimple);
         $this->buildOwnContext($result);
         $this->buildSystemContext($result);
         $this->buildPartyContext($result);
@@ -52,15 +78,15 @@ class IdpConfig
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildOwnContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildOwnContext(BuildContainer $buildContainer)
     {
         $ownCredential = $this->buildOwnCredential();
         $ownEntityDescriptorProvider = $this->buildOwnEntityDescriptorProvider($ownCredential->getCertificate());
 
         $buildContainer->getPimple()->register(
-            new \LightSaml\Bridge\Pimple\Container\Factory\OwnContainerProvider(
+            new OwnContainerProvider(
                 $ownEntityDescriptorProvider,
                 [$ownCredential]
             )
@@ -68,111 +94,111 @@ class IdpConfig
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildSystemContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildSystemContext(BuildContainer $buildContainer)
     {
-        $buildContainer->getPimple()->register(new \LightSaml\Bridge\Pimple\Container\Factory\SystemContainerProvider());
+        $buildContainer->getPimple()->register(new SystemContainerProvider());
 
         $pimple = $buildContainer->getPimple();
-        $pimple[\LightSaml\Bridge\Pimple\Container\SystemContainer::LOGGER] = function () {
+        $pimple[SystemContainer::LOGGER] = function () {
             return $this->buildLogger();
 
         };
-        $pimple[\LightSaml\Bridge\Pimple\Container\SystemContainer::SESSION] = function () {
+        $pimple[SystemContainer::SESSION] = function () {
             return $this->buildSession();
 
         };
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildPartyContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildPartyContext(BuildContainer $buildContainer)
     {
-        $buildContainer->getPimple()->register(new \LightSaml\Bridge\Pimple\Container\Factory\PartyContainerProvider());
+        $buildContainer->getPimple()->register(new PartyContainerProvider());
 
         $pimple = $buildContainer->getPimple();
-        $pimple[\LightSaml\Bridge\Pimple\Container\PartyContainer::SP_ENTITY_DESCRIPTOR] = function () {
+        $pimple[PartyContainer::SP_ENTITY_DESCRIPTOR] = function () {
             return $this->buildSpEntityStore();
         };
-        $pimple[\LightSaml\Bridge\Pimple\Container\PartyContainer::TRUST_OPTIONS_STORE] = function () {
-            $trustOptions = new \LightSaml\Meta\TrustOptions\TrustOptions();
+        $pimple[PartyContainer::TRUST_OPTIONS_STORE] = function () {
+            $trustOptions = new TrustOptions();
 
-            return new \LightSaml\Store\TrustOptions\FixedTrustOptionsStore($trustOptions);
+            return new FixedTrustOptionsStore($trustOptions);
         };
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildStoreContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildStoreContext(BuildContainer $buildContainer)
     {
         $buildContainer->getPimple()->register(
-            new \LightSaml\Bridge\Pimple\Container\Factory\StoreContainerProvider(
+            new StoreContainerProvider(
                 $buildContainer->getSystemContainer()
             )
         );
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildProviderContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildProviderContext(BuildContainer $buildContainer)
     {
         $buildContainer->getPimple()->register(
-            new \LightSaml\Bridge\Pimple\Container\Factory\ProviderContainerProvider()
+            new ProviderContainerProvider()
         );
 
         $pimple = $buildContainer->getPimple();
         // Look up user info here
-        $pimple[\LightSaml\Bridge\Pimple\Container\ProviderContainer::ATTRIBUTE_VALUE_PROVIDER] = function () {
-            return (new \LightSaml\Provider\Attribute\FixedAttributeValueProvider())
-                ->add(new \LightSaml\Model\Assertion\Attribute(
-                    \LightSaml\ClaimTypes::COMMON_NAME,
+        $pimple[ProviderContainer::ATTRIBUTE_VALUE_PROVIDER] = function () {
+            return (new FixedAttributeValueProvider())
+                ->add(new Attribute(
+                    ClaimTypes::COMMON_NAME,
                     'common-name'
                 ))
-                ->add(new \LightSaml\Model\Assertion\Attribute(
-                    \LightSaml\ClaimTypes::GIVEN_NAME,
+                ->add(new Attribute(
+                    ClaimTypes::GIVEN_NAME,
                     'first'
                 ))
-                ->add(new \LightSaml\Model\Assertion\Attribute(
-                    \LightSaml\ClaimTypes::SURNAME,
+                ->add(new Attribute(
+                    ClaimTypes::SURNAME,
                     'last'
                 ))
-                ->add(new \LightSaml\Model\Assertion\Attribute(
-                    \LightSaml\ClaimTypes::EMAIL_ADDRESS,
+                ->add(new Attribute(
+                    ClaimTypes::EMAIL_ADDRESS,
                     'somebody@example.com'
                 ));
 
         };
 
-        $pimple[\LightSaml\Bridge\Pimple\Container\ProviderContainer::SESSION_INFO_PROVIDER] = function () {
-            return new \LightSaml\Provider\Session\FixedSessionInfoProvider(
+        $pimple[ProviderContainer::SESSION_INFO_PROVIDER] = function () {
+            return new FixedSessionInfoProvider(
                 time() - $this->config['session_ttl'],
                 'session-index',
-                \LightSaml\SamlConstants::AUTHN_CONTEXT_PASSWORD_PROTECTED_TRANSPORT
+                SamlConstants::AUTHN_CONTEXT_PASSWORD_PROTECTED_TRANSPORT
             );
         };
 
-        $pimple[\LightSaml\Bridge\Pimple\Container\ProviderContainer::NAME_ID_PROVIDER] = function () use ($buildContainer) {
-            $nameId = new \LightSaml\Model\Assertion\NameID($this->config['id_provider_name']);
+        $pimple[ProviderContainer::NAME_ID_PROVIDER] = function () use ($buildContainer) {
+            $nameId = new NameId($this->config['id_provider_name']);
             $nameId
-                ->setFormat(\LightSaml\SamlConstants::NAME_ID_FORMAT_EMAIL)
+                ->setFormat(SamlConstants::NAME_ID_FORMAT_EMAIL)
                 ->setNameQualifier($buildContainer->getOwnContainer()->getOwnEntityDescriptorProvider()->get()->getEntityID())
             ;
 
-            return new \LightSaml\Provider\NameID\FixedNameIdProvider($nameId);
+            return new FixedNameIdProvider($nameId);
         };
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildCredentialContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildCredentialContext(BuildContainer $buildContainer)
     {
         $buildContainer->getPimple()->register(
-            new \LightSaml\Bridge\Pimple\Container\Factory\CredentialContainerProvider(
+            new CredentialContainerProvider(
                 $buildContainer->getPartyContainer(),
                 $buildContainer->getOwnContainer()
             )
@@ -180,12 +206,12 @@ class IdpConfig
     }
 
     /**
-     * @param \LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer
+     * @param BuildContainer $buildContainer
      */
-    private function buildServiceContext(\LightSaml\Bridge\Pimple\Container\BuildContainer $buildContainer)
+    private function buildServiceContext(BuildContainer $buildContainer)
     {
         $buildContainer->getPimple()->register(
-            new \LightSaml\Bridge\Pimple\Container\Factory\ServiceContainerProvider(
+            new ServiceContainerProvider(
                 $buildContainer->getCredentialContainer(),
                 $buildContainer->getStoreContainer(),
                 $buildContainer->getSystemContainer()
@@ -194,11 +220,11 @@ class IdpConfig
     }
 
     /**
-     * @return \Symfony\Component\HttpFoundation\Session\Session
+     * @return Session
      */
     private function buildSession()
     {
-        $session = new \Symfony\Component\HttpFoundation\Session\Session();
+        $session = new Session();
         $session->setName($this->config['session_name']);
         $session->start();
 
@@ -206,14 +232,14 @@ class IdpConfig
     }
 
     /**
-     * @return \LightSaml\Credential\X509Credential
+     * @return X509Credential
      */
     private function buildOwnCredential()
     {
-        $ownCredential = new \LightSaml\Credential\X509Credential(
-            (new \LightSaml\Credential\X509Certificate())
+        $ownCredential = new X509Credential(
+            (new X509Certificate())
                 ->loadPem(file_get_contents(__DIR__ .'/../../config/'.$this->config['cert'])),
-            \LightSaml\Credential\KeyHelper::createPrivateKey(__DIR__ .'/../../config/'.$this->config['cert_key'], null, true)
+            KeyHelper::createPrivateKey(__DIR__ .'/../../config/'.$this->config['cert_key'], null, true)
         );
         $ownCredential
             ->setEntityId($this->config['own_entity_id'])
@@ -223,13 +249,13 @@ class IdpConfig
     }
 
     /**
-     * @param \LightSaml\Credential\X509Certificate $certificate
+     * @param X509Certificate $certificate
      *
      * @return \LightSaml\Provider\EntityDescriptor\EntityDescriptorProviderInterface
      */
-    private function buildOwnEntityDescriptorProvider(\LightSaml\Credential\X509Certificate $certificate)
+    private function buildOwnEntityDescriptorProvider(X509Certificate $certificate)
     {
-        return new \LightSaml\Builder\EntityDescriptor\SimpleEntityDescriptorBuilder(
+        return new SimpleEntityDescriptorBuilder(
             $this->config['own_entity_id'],
             null,
             $this->config['id_provider'],
@@ -238,25 +264,25 @@ class IdpConfig
     }
 
     /**
-     * @return \LightSaml\Store\EntityDescriptor\FixedEntityDescriptorStore
+     * @return FixedEntityDescriptorStore
      */
     private function buildSpEntityStore()
     {
-        $idpProvider = new \LightSaml\Store\EntityDescriptor\FixedEntityDescriptorStore();
+        $idpProvider = new FixedEntityDescriptorStore();
 
         $idpProvider->add(
-            \LightSaml\Model\Metadata\EntityDescriptor::load(__DIR__.$this->config['entity_store'])
+            EntityDescriptor::load(__DIR__.$this->config['entity_store'])
         );
 
         return $idpProvider;
     }
 
     /**
-     * @return \Monolog\Logger
+     * @return Logger
      */
     private function buildLogger()
     {
-        $logger = new \Monolog\Logger($this->config['log_id'], array(new \Monolog\Handler\StreamHandler(__DIR__.'/'.$this->config['log'])));
+        $logger = new Logger($this->config['log_id'], array(new StreamHandler(__DIR__.'/'.$this->config['log'])));
 
         return $logger;
     }

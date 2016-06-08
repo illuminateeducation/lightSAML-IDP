@@ -2,7 +2,9 @@
 
 require_once __DIR__.'/_config.php';
 
-$builder = new \LightSaml\Builder\Profile\Metadata\MetadataProfileBuilder(
+use LightSaml\Builder\Profile\Metadata\MetadataProfileBuilder;
+
+$builder = new MetadataProfileBuilder(
     IdpConfig::current()->getBuildContainer()
 );
 
