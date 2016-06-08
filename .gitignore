@@ -43,4 +43,4 @@
 /*.cache
 
 /.idea/
-/config/config.yml
+/config/*.yml
