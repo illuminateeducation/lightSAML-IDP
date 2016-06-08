@@ -256,7 +256,7 @@ class IdpConfig
      */
     private function buildLogger()
     {
-        $logger = new \Monolog\Logger($this->config['log_id'], array(new \Monolog\Handler\StreamHandler(__DIR__.$this->config['log'])));
+        $logger = new \Monolog\Logger($this->config['log_id'], array(new \Monolog\Handler\StreamHandler(__DIR__.'/'.$this->config['log'])));
 
         return $logger;
     }
