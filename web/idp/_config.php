@@ -2,14 +2,24 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
+
+
+
+
 class IdpConfig
 {
-    const OWN_ENTITY_ID = 'https://localhost/lightSAML/lightSAML-IDP';
+    const OWN_ENTITY_ID = 'http://idp.v.com/idp';
+    private $config = [];
 
     /** @var  \SpConfig */
     private static $instance;
 
     public $debug = true;
+
+    public function __construct()
+    {
+        $this->config = yaml_parse_file(__DIR__ .'/../../config/config.yml');
+    }
 
     /**
      * @return \IdpConfig
@@ -115,6 +125,7 @@ class IdpConfig
         );
 
         $pimple = $buildContainer->getPimple();
+        // Look up user info here
         $pimple[\LightSaml\Bridge\Pimple\Container\ProviderContainer::ATTRIBUTE_VALUE_PROVIDER] = function () {
             return (new \LightSaml\Provider\Attribute\FixedAttributeValueProvider())
                 ->add(new \LightSaml\Model\Assertion\Attribute(
@@ -138,14 +149,14 @@ class IdpConfig
 
         $pimple[\LightSaml\Bridge\Pimple\Container\ProviderContainer::SESSION_INFO_PROVIDER] = function () {
             return new \LightSaml\Provider\Session\FixedSessionInfoProvider(
-                time() - 600,
+                time() - $this->config['session_ttl'],
                 'session-index',
                 \LightSaml\SamlConstants::AUTHN_CONTEXT_PASSWORD_PROTECTED_TRANSPORT
             );
         };
 
         $pimple[\LightSaml\Bridge\Pimple\Container\ProviderContainer::NAME_ID_PROVIDER] = function () use ($buildContainer) {
-            $nameId = new \LightSaml\Model\Assertion\NameID('name@id.com');
+            $nameId = new \LightSaml\Model\Assertion\NameID($this->config['id_provider_name']);
             $nameId
                 ->setFormat(\LightSaml\SamlConstants::NAME_ID_FORMAT_EMAIL)
                 ->setNameQualifier($buildContainer->getOwnContainer()->getOwnEntityDescriptorProvider()->get()->getEntityID())
@@ -188,7 +199,7 @@ class IdpConfig
     private function buildSession()
     {
         $session = new \Symfony\Component\HttpFoundation\Session\Session();
-        $session->setName('PHPSIDIDP');
+        $session->setName($this->config['session_name']);
         $session->start();
 
         return $session;
@@ -201,11 +212,11 @@ class IdpConfig
     {
         $ownCredential = new \LightSaml\Credential\X509Credential(
             (new \LightSaml\Credential\X509Certificate())
-                ->loadPem(file_get_contents(__DIR__.'/saml.crt')),
-            \LightSaml\Credential\KeyHelper::createPrivateKey(__DIR__.'/saml.key', null, true)
+                ->loadPem(file_get_contents(__DIR__ .'/../../config/'.$this->config['cert'])),
+            \LightSaml\Credential\KeyHelper::createPrivateKey(__DIR__ .'/../../config/'.$this->config['cert_key'], null, true)
         );
         $ownCredential
-            ->setEntityId(self::OWN_ENTITY_ID)
+            ->setEntityId($this->config['own_entity_id'])
         ;
 
         return $ownCredential;
@@ -219,9 +230,9 @@ class IdpConfig
     private function buildOwnEntityDescriptorProvider(\LightSaml\Credential\X509Certificate $certificate)
     {
         return new \LightSaml\Builder\EntityDescriptor\SimpleEntityDescriptorBuilder(
-            self::OWN_ENTITY_ID,
+            $this->config['own_entity_id'],
             null,
-            'https://localhost/lightsaml/lightSAML-IDP/web/idp/login.php',
+            $this->config['id_provider'],
             $certificate
         );
     }
@@ -232,11 +243,9 @@ class IdpConfig
     private function buildSpEntityStore()
     {
         $idpProvider = new \LightSaml\Store\EntityDescriptor\FixedEntityDescriptorStore();
+
         $idpProvider->add(
-            \LightSaml\Model\Metadata\EntityDescriptor::load(__DIR__.'/localhost-lightsaml-demosp.xml')
-        );
-        $idpProvider->add(
-            \LightSaml\Model\Metadata\EntityDescriptor::load(__DIR__.'/localhost-lightsaml-lightsaml.xml')
+            \LightSaml\Model\Metadata\EntityDescriptor::load(__DIR__.$this->config['entity_store'])
         );
 
         return $idpProvider;
@@ -247,7 +256,7 @@ class IdpConfig
      */
     private function buildLogger()
     {
-        $logger = new \Monolog\Logger('lightsaml', array(new \Monolog\Handler\StreamHandler(__DIR__.'/idp.log')));
+        $logger = new \Monolog\Logger($this->config['log_id'], array(new \Monolog\Handler\StreamHandler(__DIR__.$this->config['log'])));
 
         return $logger;
     }

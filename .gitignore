@@ -37,7 +37,9 @@
 /composer.phar
 
 
-/web/idp/idp.log
+*.log
 /composer.lock
 /*.phar
 /*.cache
+
+/.idea/

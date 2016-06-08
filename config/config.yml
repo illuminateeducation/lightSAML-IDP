@@ -1,0 +1,11 @@
+own_entity_id: 'http://idp.v.com/idp'
+id_provider: 'http://idp.v.com/idp/login.php'
+id_provider_name: 'idp@idp.v.com'
+entity_store: '/localhost-lightsaml-lightsaml.xml'
+debug: false
+session_ttl: 600
+session_name: 'PHPSIDIDP'
+cert_key: 'saml.key'
+cert: 'saml.crt'
+log: 'idp.log'
+log_id: 'saml'
