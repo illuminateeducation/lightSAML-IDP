@@ -1,7 +1,7 @@
-own_entity_id: 'http://idp.v.com/idp'
-id_provider: 'http://idp.v.com/idp/login.php'
+own_entity_id: 'https://idp.v.com/saml/idp'
+id_provider: 'https://idp.v.com/saml/idp/login.php'
 id_provider_name: 'idp@idp.v.com'
-entity_store: '/illuminate-idp.xml'
+entity_store: 'illuminate-sp.xml'
 debug: false
 session_ttl: 600
 session_name: 'PHPSIDIDP'

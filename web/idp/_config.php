@@ -271,7 +271,7 @@ class IdpConfig
         $idpProvider = new FixedEntityDescriptorStore();
 
         $idpProvider->add(
-            EntityDescriptor::load(__DIR__.$this->config['entity_store'])
+            EntityDescriptor::load(__DIR__.'/../../config/'. $this->config['entity_store'])
         );
 
         return $idpProvider;
