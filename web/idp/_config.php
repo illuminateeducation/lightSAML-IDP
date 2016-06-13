@@ -282,7 +282,7 @@ class IdpConfig
      */
     private function buildLogger()
     {
-        $logger = new Logger($this->config['log_id'], array(new StreamHandler(__DIR__.'/'.$this->config['log'])));
+        $logger = new Logger($this->config['log_id'], array(new StreamHandler(__DIR__ .'/../../logs/'.$this->config['log'])));
 
         return $logger;
     }

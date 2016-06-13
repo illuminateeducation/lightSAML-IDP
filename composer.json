@@ -20,7 +20,6 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "bash contrib/setup.sh"
         ],
         "post-update-cmd": [
         ]
