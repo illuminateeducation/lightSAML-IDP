@@ -42,5 +42,4 @@
 /*.phar
 /*.cache
 
-/.idea/
 /config/*.yml
