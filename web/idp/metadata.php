@@ -11,6 +11,11 @@ $builder = new MetadataProfileBuilder(
 $context = $builder->buildContext();
 $action = $builder->buildAction();
 
+//print "<pre>\n";
+//print_r($action->debugPrintTree());
+//
+//exit;
+
 $action->execute($context);
 
 $context->getHttpResponseContext()->getResponse()->send();

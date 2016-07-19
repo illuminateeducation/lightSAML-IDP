@@ -36,6 +36,7 @@ use LightSaml\Store\TrustOptions\FixedTrustOptionsStore;
 class IdpConfig
 {
     private $config = [];
+    private $configDir;
 
     /** @var  \SpConfig */
     private static $instance;
@@ -44,7 +45,8 @@ class IdpConfig
 
     public function __construct()
     {
-        $this->config = yaml_parse_file(__DIR__ .'/../../config/config.yml');
+        $this->configDir = __DIR__ .'/../../config/';
+        $this->config    = yaml_parse_file($this->configDir .'/config.yml');
     }
 
     /**
@@ -151,7 +153,6 @@ class IdpConfig
         );
 
         $pimple = $buildContainer->getPimple();
-        // Look up user info here
         $pimple[ProviderContainer::ATTRIBUTE_VALUE_PROVIDER] = function () {
             return (new FixedAttributeValueProvider())
                 ->add(new Attribute(
@@ -238,12 +239,10 @@ class IdpConfig
     {
         $ownCredential = new X509Credential(
             (new X509Certificate())
-                ->loadPem(file_get_contents(__DIR__ .'/../../config/'.$this->config['cert'])),
-            KeyHelper::createPrivateKey(__DIR__ .'/../../config/'.$this->config['cert_key'], null, true)
+                ->loadPem(file_get_contents($this->configDir.$this->config['cert'])),
+            KeyHelper::createPrivateKey($this->configDir.$this->config['cert_key'], null, true)
         );
-        $ownCredential
-            ->setEntityId($this->config['own_entity_id'])
-        ;
+        $ownCredential->setEntityId($this->config['own_entity_id']);
 
         return $ownCredential;
     }
@@ -270,9 +269,11 @@ class IdpConfig
     {
         $idpProvider = new FixedEntityDescriptorStore();
 
-        $idpProvider->add(
-            EntityDescriptor::load(__DIR__.'/../../config/'. $this->config['entity_store'])
-        );
+        foreach($this->config['entity_store'] as $entity_store) {
+            $idpProvider->add(
+                EntityDescriptor::load($this->configDir .'/sp/'. $entity_store)
+            );
+        }
 
         return $idpProvider;
     }

@@ -1,7 +1,9 @@
 own_entity_id: 'https://localhost/lightSAML/lightSAML-IDP''
 id_provider: 'https://localhost/lightsaml/lightSAML-IDP/web/idp/login.php'
-id_provider_name: 'sso@yourdomain.com'
-entity_store: 'localhost-lightsaml-lightsaml.xml'
+id_provider_name: 'name@id.com'
+entity_store:
+    - 'localhost-lightsaml-demosp.xml'
+    - 'localhost-lightsaml-lightsaml.xml'
 debug: false
 session_ttl: 600
 session_name: 'PHPSIDIDP'
