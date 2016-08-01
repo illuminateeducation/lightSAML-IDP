@@ -20,4 +20,4 @@ foreach ($all as $idp) {
         print "<p><a href=\"initiate.php?sp={$idp->getEntityID()}\">{$idp->getEntityID()}</a></p>\n";
     }
 }
-print "\n<p>LigthSAML-IDP</p>\n";
+
