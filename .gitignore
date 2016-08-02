@@ -44,3 +44,4 @@
 
 /config/*.yml
 /.idea/
+/config/sp/*.xml
