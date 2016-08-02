@@ -45,3 +45,5 @@
 /config/*.yml
 /.idea/
 /config/sp/*.xml
+/config/saml.key
+/config/saml.crt
